@@ -2,76 +2,120 @@
 #include <string>
 #include <vector>
 
-// Function to demonstrate basic input/output
-void basicIO() {
-    std::string name;
-    std::cout << "Enter your name: ";
-    std::getline(std::cin, name);
-    std::cout << "Hello, " << name << "!" << std::endl;
-}
+void main() {
+    // ----- Vars -----
 
-// Function to demonstrate control structures
-void controlStructures() {
-    int number;
-    std::cout << "Enter a number: ";
-    std::cin >> number;
+	// Class for drawing staff, it uses SDL for the rendering. Change the methods of this class
+	// in order to use a different renderer
+	IO mIO;
+	int mScreenHeight = mIO.GetScreenHeight();
 
-    if (number > 0) {
-        std::cout << "The number is positive." << std::endl;
-    } else if (number < 0) {
-        std::cout << "The number is negative." << std::endl;
-    } else {
-        std::cout << "The number is zero." << std::endl;
-    }
+	// Pieces
+	Pieces mPieces;
 
-    std::cout << "Counting from 1 to " << number << ":" << std::endl;
-    for (int i = 1; i <= number; ++i) {
-        std::cout << i << " ";
-    }
-    std::cout << std::endl;
-}
+	// Board
+	Board mBoard (&mPieces, mScreenHeight);
 
-// Function to demonstrate vectors
-void vectorDemo() {
-    std::vector<int> numbers = {1, 2, 3, 4, 5};
-    std::cout << "Vector elements: ";
-    for (int num : numbers) {
-        std::cout << num << " ";
-    }
-    std::cout << std::endl;
-}
+	// Game
+	Game mGame (&mBoard, &mPieces, &mIO, mScreenHeight);
 
-// Class to demonstrate object-oriented programming
-class Rectangle {
-private:
-    int width, height;
+	// Get the actual clock milliseconds (SDL)
+	unsigned long mTime1 = SDL_GetTicks();
 
-public:
-    Rectangle(int w, int h) : width(w), height(h) {}
+	// ----- Main Loop -----
 
-    int area() {
-        return width * height;
-    }
+	while (!mIO.IsKeyDown (SDLK_ESCAPE))
+	{
+		// ----- Draw -----
 
-    void display() {
-        std::cout << "Rectangle with width " << width << " and height " << height << " has an area of " << area() << std::endl;
-    }
-};
+		mIO.ClearScreen (); 		// Clear screen
+		mGame.DrawScene ();			// Draw staff
+		mIO.UpdateScreen ();		// Put the graphic context in the screen
 
-// Main function to test all functionalities
-int main() {
-    std::cout << "Testing Basic I/O:" << std::endl;
-    basicIO();
+		// ----- Input -----
 
-    std::cout << "\nTesting Control Structures:" << std::endl;
-    controlStructures();
+		int mKey = mIO.Pollkey();
 
-    std::cout << "\nTesting Vectors:" << std::endl;
-    vectorDemo();
+		switch (mKey)
+		{
+			case (SDLK_RIGHT): 
+			{
+				if (mBoard.IsPossibleMovement (mGame.mPosX + 1, mGame.mPosY, mGame.mPiece, mGame.mRotation))
+					mGame.mPosX++;
+					break;
+			}
 
-    std::cout << "\nTesting Classes and Objects:" << std::endl;
-    Rectangle rect(10, 5);
-    rect.display();
+			case (SDLK_LEFT): 
+			{
+				if (mBoard.IsPossibleMovement (mGame.mPosX - 1, mGame.mPosY, mGame.mPiece, mGame.mRotation))
+					mGame.mPosX--;	
+				break;
+			}
 
-    return 0;
+			case (SDLK_DOWN):
+			{
+				if (mBoard.IsPossibleMovement (mGame.mPosX, mGame.mPosY + 1, mGame.mPiece, mGame.mRotation))
+					mGame.mPosY++;	
+				break;
+			}
+
+			case (SDLK_x):
+			{
+				// Check collision from up to down
+				while (mBoard.IsPossibleMovement(mGame.mPosX, mGame.mPosY, mGame.mPiece, mGame.mRotation)) { mGame.mPosY++; }
+	
+				mBoard.StorePiece (mGame.mPosX, mGame.mPosY - 1, mGame.mPiece, mGame.mRotation);
+
+				mBoard.DeletePossibleLines ();
+
+				if (mBoard.IsGameOver())
+				{
+					mIO.Getkey();
+					exit(0);
+				}
+
+				mGame.CreateNewPiece();
+
+				break;
+			}
+
+			case (SDLK_z):
+			{
+				if (mBoard.IsPossibleMovement (mGame.mPosX, mGame.mPosY, mGame.mPiece, (mGame.mRotation + 1) % 4))
+					mGame.mRotation = (mGame.mRotation + 1) % 4;
+
+				break;
+			}
+		}
+
+		// ----- Vertical movement -----
+
+		unsigned long mTime2 = SDL_GetTicks();
+
+		if ((mTime2 - mTime1) > WAIT_TIME)
+		{
+			if (mBoard.IsPossibleMovement (mGame.mPosX, mGame.mPosY + 1, mGame.mPiece, mGame.mRotation))
+			{
+				mGame.mPosY++;
+			}
+			else
+			{
+				mBoard.StorePiece (mGame.mPosX, mGame.mPosY, mGame.mPiece, mGame.mRotation);
+
+				mBoard.DeletePossibleLines ();
+
+				if (mBoard.IsGameOver())
+				{
+					mIO.Getkey();
+					exit(0);
+				}
+
+				mGame.CreateNewPiece();
+			}
+
+			mTime1 = SDL_GetTicks();
+		}
+	}
+
+	return 0;
 }
